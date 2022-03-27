@@ -7,12 +7,16 @@ cd "$(dirname "$(realpath "$0")")" || exit
 
 word="$1"
 
-print_def() {
+print_defs() {
+    pronunciations_json=$(curl -s -X GET --header Accept: application/json https://api.wordnik.com/v4/word.json/"$word"/pronunciations?api_key=$api_key)
     defs_json=$(curl -s -X GET --header Accept: application/json https://api.wordnik.com/v4/word.json/"$word"/definitions?api_key=$api_key)
+
+    echo -e "WORD\n----\n$word\n"
+    echo "$pronunciations_json" | jq 'map(select(.rawType == "IPA"))' | jq -r '["PRONUNCIATION", "ALPHABET"], ["-------------", "--------"], (.[] | [.raw, .rawType]) | @tsv'
+    echo ""
     echo "$defs_json" | jq -r '["SPEECH","DEFINITION"], ["------","----------"], (.[] | [.partOfSpeech, .text]) | @tsv' | sed 's/<[^>]*>//g'
 }
 
 # Output definition
-echo "$word"
-print_def | less
+print_defs | less -S
 
