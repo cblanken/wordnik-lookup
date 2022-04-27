@@ -6,17 +6,22 @@ cd "$(dirname "$(realpath "$0")")" || exit
 . ./api_key
 
 word="$1"
-
+defs_json=$(curl -s -X GET --header Accept: application/json https://api.wordnik.com/v4/word.json/"$word"/definitions?api_key="$api_key")
+def_exists=$(jq '.error' 2>/dev/null <<<"$defs_json")
+if [ "$def_exists" = "\"Not Found\"" ]; then
+    echo "No definitions exist on Wordnik for $word"
+    exit 1
+fi
+pronunciations_json=$(curl -s -X GET --header Accept: application/json https://api.wordnik.com/v4/word.json/"$word"/pronunciations?api_key=$api_key)
 print_defs() {
-    pronunciations_json=$(curl -s -X GET --header Accept: application/json https://api.wordnik.com/v4/word.json/"$word"/pronunciations?api_key=$api_key)
-    defs_json=$(curl -s -X GET --header Accept: application/json https://api.wordnik.com/v4/word.json/"$word"/definitions?api_key=$api_key)
-
     echo -e "WORD\n----\n$word\n"
-    echo "$pronunciations_json" | jq 'map(select(.rawType == "IPA"))' | jq -r '["PRONUNCIATION", "ALPHABET"], ["-------------", "--------"], (.[] | [.raw, .rawType]) | @tsv'
+    # TODO: add top example
+    echo "$pronunciations_json" | jq 'map(select(.rawType == "IPA"))' 2>/dev/null | jq -r '["PRONUNCIATION", "ALPHABET"], ["-------------", "--------"], (.[] | [.raw, .rawType]) | @tsv'
     echo ""
-    echo "$defs_json" | jq -r '["SPEECH","DEFINITION"], ["------","----------"], (.[] | [.partOfSpeech, .text]) | @tsv' | sed 's/<[^>]*>//g'
+    echo "$defs_json" | jq -r '["SPEECH","DEFINITION"], ["------","----------"], (.[] | [.partOfSpeech, .text]) | @tsv' 2>/dev/null | sed 's/<[^>]*>//g'
 }
 
 # Output definition
-print_defs | less -S
+print_defs | less -cS
+exit 0
 
