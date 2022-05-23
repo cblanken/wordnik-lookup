@@ -15,7 +15,7 @@ word="$1"
 defs_json=$(curl -s -X GET --header Accept: application/json https://api.wordnik.com/v4/word.json/"$word"/definitions?api_key="$api_key")
 def_exists=$(jq '.error' 2>/dev/null <<< "$defs_json")
 if [ "$def_exists" = "\"Not Found\"" ]; then
-    echo "No definitions exist on Wordnik for $word"
+    echo "No definitions exist on Wordnik for \"$word\""
     exit 1
 fi
 
@@ -31,38 +31,52 @@ pronunciations=$(echo "$pronunciations_json" \
     | jq -r '(.[] | [.raw, .rawType]) | @tsv')
 
 println() {
-    printf "%s\t%s\n" "$1" "$2"
+    printf "%b\t%b\n" "$1" "$2"
 }
 
-split=("--------------" "----------")
-print_all() {
-    println "WORD: $word"
-    println ${split[0]} ${split[1]}
-    println "PRONUNCIATION" "ALPHABET"
-    println ${split[0]} ${split[1]}
-    # TODO: add top example
-    #echo -n "$pronunciations" | tail -n +2
+columnize() {
+    column-new \
+        --table \
+        --separator $'\t' \
+        --output-width 90 \
+        --table-noheadings \
+        --table-columns C1,C2 \
+        --table-wrap C2 \
+        --table-empty-lines <<< "$1"
+    printf "\n"
+}
+
+split=("---------------" "----------")
+print_pronunciations() {
+    # TODO: fix Unicode IPA output
     if [ "$pronunciations" != "" ]; then
-        echo "$pronunciations" | head -n 5
-        echo ""
+        println ${split[0]} ${split[1]}
+        println "PRONUNCIATION" "ALPHABET"
+        println ${split[0]} ${split[1]}
+        p=$(head -n 5 <<< "$pronunciations")
+        printf "%b\n" "$p"
     else
-        println "" "No pronunciations found for \"$word\""
+        printf "No pronunciations found for \"%b\"" "$word"
     fi
+}
+
+print_defs() {
     println ${split[0]} ${split[1]}
     println "SPEECH" "DEFINITION"
     println ${split[0]} ${split[1]}
-    printf "%b\n" "$defs"
+    printf "%b" "$defs"
+}
+
+print_all() {
+    printf "WORD: %s\n\n" "$word"
+    p=$(print_pronunciations)
+    columnize "$p"
+    d=$(print_defs)
+    columnize "$d"
+    # TODO: add top example
 }
 
 # Output definition
-print_all | column-new \
-    --table \
-    --separator $'\t' \
-    --output-width 90 \
-    --table-noheadings \
-    --table-columns C1,C2 \
-    --table-wrap C2 \
-    --table-empty-lines \
-    | less -cS
+print_all | less -cS
 exit 0
 
