@@ -4,6 +4,8 @@
 #       Ubuntu has an outdated version by default and doesn't allow for easy 
 #       installation via apt, so it must be compiled from source.
 
+# NOTE: Arch Linux can install the up-to-date version of `column` via pacman
+
 # Set working directory
 cd "$(dirname "$(realpath "$0")")" || exit
 
@@ -35,7 +37,7 @@ println() {
 }
 
 columnize() {
-    column-new \
+    column \
         --table \
         --separator $'\t' \
         --output-width 90 \
